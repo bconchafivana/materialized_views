@@ -1,0 +1,24 @@
+SELECT client_rut, AVG(seasonal_index) as season_index
+FROM (
+WITH monthly_income AS (
+SELECT client_rut, DATE_TRUNC('month', FROM_UNIXTIME(emission)) AS month, SUM(original_amount) as income-- , COUNT(*) AS count
+FROM fc_documents fd 
+WHERE FROM_UNIXTIME(emission) > DATE_FORMAT(DATE_ADD(NOW(), INTERVAL (1-DAY(NOW())) DAY), '%Y-%m-%d') - INTERVAL 6 MONTH
+AND FROM_UNIXTIME(emission) < DATE_FORMAT(DATE_ADD(NOW(), INTERVAL (1-DAY(NOW())) DAY),'%Y-%m-%d') 
+AND has_annulment_nc IN (NULL, 0)
+GROUP BY client_rut , month
+),
+avg_income AS (
+  SELECT client_rut , AVG(income) AS avg_amount
+  FROM monthly_income 
+  GROUP BY client_rut 
+)
+SELECT monthly_income.client_rut, monthly_income.month, monthly_income.income,
+monthly_income.income / avg_income.avg_amount AS seasonal_index, avg_income.avg_amount ,
+ROW_NUMBER() OVER (PARTITION BY monthly_income.client_rut ORDER BY month DESC) as rn
+FROM monthly_income
+JOIN avg_income ON monthly_income.client_rut = avg_income.client_rut
+
+) as seasonality
+WHERE rn IN (1, 2, 3)
+GROUP BY client_rut
