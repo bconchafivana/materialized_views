@@ -1,0 +1,28 @@
+WITH comp (client_rut, debtor_rut, emission_date , rn, delta_days) AS  (
+SELECT client_rut, debtor_rut, emission_date , rn, DATEDIFF( previous_date, emission_date) as delta_days
+FROM
+( 
+SELECT d.client_rut , d.debtor_rut , LAG(d.emission_date) OVER (PARTITION BY d.client_rut, d.debtor_rut ORDER BY d.emission_date DESC) as previous_date, emission_date,
+ROW_NUMBER() OVER (PARTITION BY d.client_rut, d.debtor_rut ORDER BY emission_date DESC) as rn
+ FROM (
+ 
+  SELECT client_rut, debtor_rut, CURRENT_DATE() as emission_date
+ FROM fc_documents 
+ GROUP BY  client_rut, debtor_rut
+ 
+ UNION
+ SELECT client_rut, debtor_rut, FROM_UNIXTIME(emission) as emission_date
+ FROM fc_documents 
+WHERE original_amount IS NOT NULL AND FROM_UNIXTIME(emission) > '2020-01-01'
+ORDER BY emission DESC
+ ) as d)
+ ) 
+ SELECT comp.client_rut, comp.debtor_rut, COUNT(*) - 1 as n_ops, IFNULL(AVG(comp.delta_days), 0) as avg_delta_ops, 
+ IFNULL(comp2.delta_last_op, 0) as delta_last_op
+ FROM comp 
+ LEFT JOIN 
+ (SELECT comp.client_rut, comp.debtor_rut, comp.delta_days as delta_last_op
+ FROM comp
+WHERE rn = 2 ) as comp2
+ON comp2.client_rut = comp.client_rut AND comp2.debtor_rut = comp.debtor_rut
+ GROUP BY comp.client_rut, comp.debtor_rut
