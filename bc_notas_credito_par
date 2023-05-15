@@ -1,0 +1,20 @@
+CREATE VIEW bc_notas_credito_par AS (
+ with notas_credito as
+(
+	select nc.document_id as id_nota_credito,
+	       amount as monto_nc,
+		   concat(nc.client_rut_real,'_',
+					replace(JSON_EXTRACT_JSON(nc.reference, 0,'document_type'), '"',''),'_',
+					replace(JSON_EXTRACT_JSON(nc.reference, 0,'folio'), '"','')) as id_documento_referenciado
+	from fc_documents nc
+	where document_type = 61	and nc.reference is not null and DATEDIFF(CURDATE(), FROM_UNIXTIME(nc.emission)) < 365 )
+	
+select d.debtor_rut , d.client_rut , 
+ IFNULL(SUM(nc.monto_nc)/SUM(d.original_amount), 0) AS nc_proportion, 
+CASE WHEN SUM(nc.monto_nc) > 0 THEN SUM(nc.monto_nc)
+	ELSE 0 END as nc_amount, SUM(d.original_amount) as total_amount
+from fc_documents d 
+     left join notas_credito nc on (d.document_id = nc.id_documento_referenciado)
+where DATEDIFF(CURDATE(), FROM_UNIXTIME(d.emission)) < 365 AND d.document_type IN (33,34,46) AND d.original_amount != 0
+GROUP BY d.debtor_rut , d.client_rut
+) 
