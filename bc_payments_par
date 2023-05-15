@@ -1,0 +1,37 @@
+WITH payments as (
+WITH pay_with_op AS (
+	select	distinct payment_id
+	from	fc_rf_payment_means mp
+	inner join fc_operations op on mp.reference = op.no_operation
+	where	mp.document_type = 201 
+	 and	op.operation_type = 2
+	 and	op.deleted is null
+	 and	op.status = 3
+) 
+select	pd.payment_document_id , pd.document_id , pd.debtor_rut , pd.debtor_name , pd.payment_amount , pd.deposit_amount , pd.balance , d.finance_amount , d.financed_balance ,
+pd.client_rut , pd.client_name , DATE(pd.expiration_date) , DATEDIFF( d.paid_date_utc, pd.expiration_date) as mora_days,
+ d.status, d.backoffice_status , DATE(d.paid_date_utc) AS paid_date_utc, p.payer ,
+CASE WHEN pay_with_op.payment_id IS NULL THEN 0
+	ELSE 1 END AS payed_with_op,
+CASE WHEN d.backoffice_status IN ('His', 'PDOC', 'POP', 'PREN', 'REC') THEN 'pagado'
+	WHEN d.backoffice_status IN ('Jud', 'PreJud', 'Mor', 'MPL') THEN 'conflicto_no_pagado'
+	WHEN d.backoffice_status IN ('Vig') THEN 'vigente'
+	WHEN d.backoffice_status IN ('Cas') THEN 'castigo' END AS general_status
+	from	fc_rf_payment_documents pd
+LEFT JOIN pay_with_op ON pay_with_op.payment_id = pd.payment_id 
+LEFT JOIN fc_documents d ON d.document_id = pd.document_id 
+LEFT JOIN fc_payments p ON p.payment_id = pd.payment_id 
+WHERE YEAR(pd.expiration_date) > 2020 )
+SELECT client_rut, debtor_rut , general_status, payed_with_op, AVG(mora_days) as avg_mora_days,
+SUM(finance_amount) as total_finance_amount,
+CASE WHEN payer = 2 THEN SUM(finance_amount) 
+	ELSE 0 end as client_payed_finance_amount, 
+CASE WHEN payer = 1 THEN SUM(finance_amount) 
+	ELSE 0 end as debtor_payed_finance_amount, 
+CASE WHEN payer NOT IN (1,2) THEN SUM(finance_amount) 
+	ELSE 0 end as other_payed_finance_amount, 
+SUM(financed_balance) as sum_financed_balance, COUNT(*) as n_financed_docs, MAX(paid_date_utc) as last_payment, COUNT(DISTINCT paid_date_utc) AS n_payments
+from payments 
+ WHERE general_status = 'pagado' 
+GROUP BY client_rut, debtor_rut , general_status, payed_with_op
+ORDER BY client_rut, debtor_rut , general_status, payed_with_op
