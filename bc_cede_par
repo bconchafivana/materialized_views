@@ -1,0 +1,38 @@
+CREATE VIEW bc_cede_par AS (
+ WITH weighted AS (SELECT client_rut, debtor_rut,
+                                 CASE
+                                     WHEN d.cesion_owner IS NULL THEN 0
+                                     ELSE original_amount END  AS cede_amount,
+                                original_amount, cesion_owner
+FROM fc_documents d
+
+WHERE FROM_UNIXTIME(d.emission)    > CURRENT_DATE () - INTERVAL 180 DAY
+  AND FROM_UNIXTIME(d.emission)    < CURRENT_DATE () - INTERVAL 30 DAY
+  AND (deleted is null or deleted = 0)
+    ),
+own AS 
+(
+WITH owners AS (
+  SELECT d.cesion_owner, d.cesion_owner_name, SUM(d.original_amount) AS sum_amount
+  FROM fc_documents d
+  WHERE FROM_UNIXTIME(d.emission) > '2023-01-01' AND cesion_owner IS NOT NULL 
+  GROUP BY d.cesion_owner, d.cesion_owner_name
+), 
+max_owners AS (
+  SELECT o.cesion_owner, MAX(o.sum_amount) AS max_amount
+  FROM owners o
+  GROUP BY o.cesion_owner
+)
+SELECT o.cesion_owner, o.cesion_owner_name -- , SUM(o.sum_amount) AS sum_amount
+FROM owners o
+JOIN max_owners mo ON o.cesion_owner = mo.cesion_owner AND o.sum_amount = mo.max_amount
+GROUP BY o.cesion_owner, o.cesion_owner_name
+)
+
+SELECT client_rut, debtor_rut, ROUND(ifnull(SUM(cede_amount)/sum(original_amount) ,0),2) AS cede_proportion, 
+SUM(original_amount) as sum_amount,
+GROUP_CONCAT(DISTINCT own.cesion_owner_name SEPARATOR ',') as factorings
+FROM weighted
+LEFT JOIN own ON own.cesion_owner = weighted.cesion_owner
+GROUP BY client_rut, debtor_rut 
+) 
