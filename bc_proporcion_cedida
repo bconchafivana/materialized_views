@@ -1,0 +1,18 @@
+CREATE VIEW bc_proporcion_cedida AS (
+WITH weighted AS (SELECT client_rut,
+                                 CASE
+                                     WHEN d.cesion_owner IS NULL THEN 0
+                                     ELSE 1 END AS cede,
+                                 CASE
+                                     WHEN d.cesion_owner IS NULL THEN 0
+                                     ELSE original_amount END  AS cede_amount,
+                                original_amount
+FROM fc_documents d
+WHERE FROM_UNIXTIME(d.emission)    > CURRENT_DATE () - INTERVAL 180 DAY
+  AND FROM_UNIXTIME(d.emission)    < CURRENT_DATE () - INTERVAL 30 DAY
+  AND (deleted is null or deleted = 0)
+    )
+SELECT client_rut, ROUND(ifnull(SUM(cede_amount)/sum(original_amount) ,0),2) AS cede_proportion
+FROM weighted
+GROUP BY client_rut
+) 
