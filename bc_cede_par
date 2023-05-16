@@ -7,7 +7,7 @@ CREATE VIEW bc_cede_par AS (
 FROM fc_documents d
 
 WHERE FROM_UNIXTIME(d.emission)    > CURRENT_DATE () - INTERVAL 180 DAY
-  AND FROM_UNIXTIME(d.emission)    < CURRENT_DATE () - INTERVAL 30 DAY
+  AND FROM_UNIXTIME(d.emission)    < CURRENT_DATE () - INTERVAL 15 DAY
   AND (deleted is null or deleted = 0)
     ),
 own AS 
