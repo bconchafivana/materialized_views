@@ -4,8 +4,8 @@ SELECT cp.client_rut, cp.debtor_rut, cp.cede_proportion, cp.sum_amount as sum_am
 oep.n_ops, oep.avg_delta_ops, oep.delta_last_op,
 pp.payed_with_op, pp.avg_mora_days, pp.total_finance_amount, pp.client_payed_finance_amount, pp.debtor_payed_finance_amount, pp.n_financed_docs, pp.last_payment,
 pp.avg_mora_days_with_op, pp.total_finance_amount_with_op, pp.last_payment_with_op
-FROM bc_cede_par cp
-JOIN bc_notas_credito_par ncp ON ncp.client_rut = cp.client_rut AND ncp.debtor_rut = cp.debtor_rut
-JOIN bc_ops_entre_par oep ON oep.client_rut = cp.client_rut AND oep.debtor_rut = cp.debtor_rut
-JOIN bc_payments_par pp ON pp.client_rut = cp.client_rut AND pp.debtor_rut = cp.debtor_rut
+FROM  bc_ops_entre_par oep
+LEFT JOIN bc_notas_credito_par ncp ON ncp.client_rut = oep.client_rut AND oep.debtor_rut = ncp.debtor_rut
+LEFT JOIN bc_cede_par cp ON oep.client_rut = cp.client_rut AND oep.debtor_rut = cp.debtor_rut
+LEFT JOIN bc_payments_par pp ON pp.client_rut = oep.client_rut AND pp.debtor_rut = oep.debtor_rut
 )
