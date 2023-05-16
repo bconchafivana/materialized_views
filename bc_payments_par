@@ -1,3 +1,4 @@
+
 WITH payments as (
 WITH pay_with_op AS (
 	select	distinct payment_id
@@ -21,8 +22,9 @@ CASE WHEN d.backoffice_status IN ('His', 'PDOC', 'POP', 'PREN', 'REC') THEN 'pag
 LEFT JOIN pay_with_op ON pay_with_op.payment_id = pd.payment_id 
 LEFT JOIN fc_documents d ON d.document_id = pd.document_id 
 LEFT JOIN fc_payments p ON p.payment_id = pd.payment_id 
-WHERE YEAR(pd.expiration_date) > 2020 )
-SELECT client_rut, debtor_rut , general_status, payed_with_op, AVG(mora_days) as avg_mora_days,
+WHERE YEAR(pd.expiration_date) > 2020 
+)
+SELECT p.client_rut, p.debtor_rut , general_status, payed_with_op, AVG(mora_days) as avg_mora_days,
 SUM(finance_amount) as total_finance_amount,
 CASE WHEN payer = 2 THEN SUM(finance_amount) 
 	ELSE 0 end as client_payed_finance_amount, 
@@ -30,8 +32,17 @@ CASE WHEN payer = 1 THEN SUM(finance_amount)
 	ELSE 0 end as debtor_payed_finance_amount, 
 CASE WHEN payer NOT IN (1,2) THEN SUM(finance_amount) 
 	ELSE 0 end as other_payed_finance_amount, 
-SUM(financed_balance) as sum_financed_balance, COUNT(*) as n_financed_docs, MAX(paid_date_utc) as last_payment, COUNT(DISTINCT paid_date_utc) AS n_payments
-from payments 
- WHERE general_status = 'pagado' 
-GROUP BY client_rut, debtor_rut , general_status, payed_with_op
-ORDER BY client_rut, debtor_rut , general_status, payed_with_op
+SUM(financed_balance) as sum_financed_balance, COUNT(*) as n_financed_docs, MAX(paid_date_utc) as last_payment,
+COUNT(DISTINCT paid_date_utc) AS n_payments,
+pwo.avg_mora_days_with_op, pwo.total_finance_amount_with_op, pwo.last_payment_with_op
+from payments p
+LEFT JOIN ( 
+SELECT p2.client_rut, p2.debtor_rut , AVG(p2.mora_days) as avg_mora_days_with_op , SUM(p2.finance_amount) as total_finance_amount_with_op, MAX(paid_date_utc) as last_payment_with_op
+FROM payments p2 
+WHERE p2.general_status = 'pagado' and p2.payed_with_op = 1
+GROUP BY p2.client_rut, p2.debtor_rut
+) pwo
+ON pwo.client_rut = p.client_rut AND pwo.debtor_rut = pwo.debtor_rut 
+ WHERE p.general_status = 'pagado' and p.payed_with_op = 0
+GROUP BY p.client_rut, p.debtor_rut
+ORDER BY p.client_rut, p.debtor_rut
