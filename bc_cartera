@@ -8,6 +8,7 @@ SELECT
     d.debtor_rut,
     d.debtor_name,
     d.debtor_category,
+    d.backoffice_status,
     CONCAT(d.client_rut, '_', d.debtor_rut) AS client_debtor,
     o.base_rate,
     o.finance_amount AS o_finance_amount,
