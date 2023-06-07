@@ -22,7 +22,7 @@ CASE WHEN d.backoffice_status IN ('His', 'PDOC', 'POP', 'PREN', 'REC') THEN 'pag
 LEFT JOIN pay_with_op ON pay_with_op.payment_id = pd.payment_id 
 LEFT JOIN fc_documents d ON d.document_id = pd.document_id 
 LEFT JOIN fc_payments p ON p.payment_id = pd.payment_id 
-WHERE YEAR(pd.expiration_date) > 2020 
+WHERE  year(current_date()) - YEAR(FROM_UNIXTIME(d.emission)) < 2
 )
 SELECT p.client_rut, p.debtor_rut , general_status, payed_with_op, AVG(mora_days) as avg_mora_days,
 SUM(finance_amount) as total_finance_amount,
